@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - 円周率計算サイト</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .pi-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: start;
+            align-items: start;
+            font-size: 14px;
+            line-height: 1;
+            color: rgba(0, 0, 0, 0.05);
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .pi-background::after {
+            content: "3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196...";
+            animation: flow 120s linear infinite;
+            white-space: wrap;
+            word-break: break-all;
+        }
+
+        @keyframes flow {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .formula {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .btn-calculate {
+            display: block;
+            width: 200px;
+            margin: 30px auto;
+            padding: 15px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-calculate:hover {
+            background-color: #2980b9;
+        }
+
+        .old-version {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .btn-old {
+            font-size: 12px;
+            color: #95a5a6;
+            text-decoration: none;
+            padding: 5px 10px;
+            border: 1px solid #95a5a6;
+            border-radius: 3px;
+        }
+
+        .btn-old:hover {
+            background-color: #95a5a6;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="pi-background"></div>
+    <div class="container">
+        <h1>Welcome</h1>
+        
+        <p>ラマヌジャンの円周率の公式は、インドの数学者スリニヴァーサ・ラマヌジャンによって発見された画期的な公式です。この公式は円周率πを高速に計算することができ、各項の収束が非常に速いという特徴があります。</p>
+
+        <div class="formula">
+            <p>ラマヌジャンの公式：</p>
+            <p>\[\frac{1}{\pi} = \frac{2\sqrt{2}}{9801} \sum_{k=0}^{\infty} \frac{(4k)!(1103+26390k)}{(k!)^4 396^{4k}}\]</p>
+        </div>
+
+        <p>この公式の特徴：</p>
+        <ul>
+            <li>各項は非常に速く収束します</li>
+            <li>わずか数項で円周率の値を高精度で得ることができます</li>
+            <li>計算機による実装が比較的容易です</li>
+        </ul>
+
+        <a href="testpi.html" class="btn-calculate">Let's計算</a>
+
+        <div class="old-version">
+            <a href="pi.html" class="btn-old">Old Version</a>
+        </div>
+    </div>
+
+    <!-- MathJax for rendering mathematical formulas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script>
+        // 画面全体に円周率を表示するためのJavaScript
+        window.onload = function() {
+            const bg = document.querySelector('.pi-background');
+            const piString = "3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196...";
+            let content = '';
+            
+            // 画面を埋めるのに十分な回数繰り返す
+            for(let i = 0; i < 100; i++) {
+                content += piString;
+            }
+            
+            bg.textContent = content;
+        }
+    </script>
+</body>
+</html>

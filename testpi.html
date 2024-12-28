@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>円周率計算機</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            gap: 20px;
+        }
+
+        .main-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            flex: 2;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        .titlepi {
+            font-family: Serif;
+        }
+
+        .debug-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            flex: 1;
+            max-width: 400px;
+            height: calc(100vh - 40px);
+            position: sticky;
+            top: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .debugtitle {
+            font-family: serif;
+        }
+
+        .formula {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            overflow-x: auto;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 120px;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .input-label {
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .loading-container {
+            display: none;
+            margin: 1rem 0;
+        }
+
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loading-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .loading-text {
+            margin-top: 0.5rem;
+            color: #666;
+        }
+
+        .result-value {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin: 1rem 0;
+            word-break: break-all;
+        }
+
+        .warning-message {
+            color: #ff9800;
+            padding: 1rem;
+            background-color: #fff3e0;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .error-message {
+            color: #d32f2f;
+            padding: 1rem;
+            background-color: #ffebee;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .debug-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .debug-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-left: 3px solid #4CAF50;
+            background-color: #f8f9fa;
+        }
+
+        .debug-time {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .debug-value {
+            color: #2196F3;
+            word-break: break-all;
+        }
+
+        .debug-error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .stack-trace {
+            font-family: monospace;
+            white-space: pre-wrap;
+            text-align: left;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+
+        .remaining-time {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <h1 class="titlepi">円周率計算機</h1>
+        
+        <p>ラマヌジャンの円周率の公式を使用して円周率πを計算します。<br>あなたのパソコンで計算します。<br>たまにエラーが発生します。そのときは再読込してください。</p>
+        
+        <div class="formula">
+            1/π = (2√2/9801) Σ(k=0 to ∞) [(4k)!(1103+26390k)] / [(k!)⁴ 396⁴ᵏ]
+        </div>
+        
+        <div class="input-group">
+            <div class="input-field">
+                <span class="input-label">計算する項数：</span>
+                <input type="number" id="terms" value="1" min="1">
+            </div>
+            <div class="input-field">
+                <span class="input-label">表示する桁数：</span>
+                <input type="number" id="precision" value="30" min="1">
+            </div>
+        </div>
+
+        <div id="warning" class="warning-message">
+            項数が結構多いと、計算に時間がかかる場合があります。
+            下におよその残り時間が表示されているので、参考程度で。
+        </div>
+        
+        <button id="calculateButton" onclick="startCalculation()">計算する</button>
+        
+        <div id="loading" class="loading-container">
+            <div class="loading-bar">
+                <div id="progress" class="loading-progress"></div>
+            </div>
+            <div class="loading-text">
+                計算中... <span id="progressText">0%</span>
+                <div class="remaining-time">推定残り時間: <span id="remainingTime">計算中...</span></div>
+            </div>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <div class="debug-container">
+        <h2 class="debugtitle">詳細情報</h2>
+        <div id="debugContent" class="debug-content"></div>
+    </div>
+
+    <script>
+        let debugLog = [];
+        let startTime = null;
+        let termTimes = [];
+
+        function addDebugEntry(message, value = null, isError = false) {
+            const time = new Date().toLocaleTimeString();
+            const entry = {
+                time,
+                message,
+                value: value ? value.toString() : null,
+                isError
+            };
+            debugLog.push(entry);
+            updateDebugDisplay();
+        }
+
+        function updateDebugDisplay() {
+            const debugContent = document.getElementById('debugContent');
+            if (!debugContent) return;
+
+            const html = debugLog.map(entry => `
+                <div class="debug-entry ${entry.isError ? 'debug-error' : ''}">
+                    <span class="debug-time">[${entry.time}]</span>
+                    <span>${entry.message}</span>
+                    ${entry.value ? `<br><span class="debug-value">${entry.value}</span>` : ''}
+                </div>
+            `).join('');
+
+            debugContent.innerHTML = html;
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function formatTime(milliseconds) {
+            if (milliseconds < 1000) {
+                return `${Math.round(milliseconds)}ミリ秒`;
+            } else if (milliseconds < 60000) {
+                return `${Math.round(milliseconds / 1000)}秒`;
+            } else {
+                const minutes = Math.floor(milliseconds / 60000);
+                const seconds = Math.round((milliseconds % 60000) / 1000);
+                return `${minutes}分${seconds}秒`;
+            }
+        }
+
+        function updateRemainingTime(current, total) {
+            if (!startTime || current === 0) {
+                startTime = Date.now();
+                termTimes = [];
+                return;
+            }
+
+            const currentTime = Date.now();
+            termTimes.push(currentTime);
+
+            if (termTimes.length > 1) {
+                const recentTimes = termTimes.slice(-Math.min(5, termTimes.length));
+                const averageTime = (recentTimes[recentTimes.length - 1] - recentTimes[0]) / (recentTimes.length - 1);
+                const remainingTerms = total - current;
+                const estimatedRemainingTime = averageTime * remainingTerms;
+
+                document.getElementById('remainingTime').textContent = formatTime(estimatedRemainingTime);
+            }
+        }
+
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            document.getElementById('progress').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '%';
+            updateRemainingTime(current, total);
+        }
+
+        function factorial(n) {
+            try {
+                addDebugEntry(`階乗の計算開始: ${n}`);
+                if (n === 0 || n === math.bignumber(0)) return math.bignumber(1);
+                let result = math.bignumber(1);
+                for (let i = 1; i <= Number(n); i++) {
+                    result = math.multiply(result, math.bignumber(i));
+                }
+                addDebugEntry(`階乗の計算完了: ${n}!`, result);
+                return result;
+            } catch (error) {
+                addDebugEntry(`階乗の計算でエラー発生: ${error.message}`, null, true);
+                throw error;
+            }
+        }
+
+        function formatPiValue(pi, precision) {
+            const piString = pi.toString();
+            const parts = piString.split('.');
+            if (parts.length !== 2) return piString;
+
+            const integerPart = parts[0];
+            const decimalPart = parts[1];
+            const truncatedDecimal = decimalPart.substring(0, precision);
+            
+            return `${integerPart}.${truncatedDecimal}`;
+        }
+
+        function startCalculation() {
+            const terms = parseInt(document.getElementById('terms').value);
+            const precision = parseInt(document.getElementById('precision').value);
+            const warningDiv = document.getElementById('warning');
+            const button = document.getElementById('calculateButton');
+            
+            debugLog = [];
+            startTime = null;
+            termTimes = [];
+            addDebugEntry(`計算開始: ${terms}項、${precision}桁`);
+            
+            warningDiv.style.display = terms > 5 ? 'block' : 'none';
+            if (terms > 5) {
+                addDebugEntry('警告: 項数が5を超えています');
+            }
+            
+            button.disabled = true;
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('remainingTime').textContent = '計算中...';
+            updateProgress(0, terms);
+
+            setTimeout(() => calculatePi(terms, precision), 100);
+        }
+
+        async function calculatePi(terms, precision) {
+            const loadingDiv = document.getElementById('loading');
+            const resultDiv = document.getElementById('result');
+            const button = document.getElementById('calculateButton');
+            
+            try {
+                const calcPrecision = precision + 10;
+                math.config({
+                    precision: calcPrecision,
+                    number: 'BigNumber'
+                });
+
+                let sum = math.bignumber(0);
+                addDebugEntry('初期化完了');
+                
+                for (let k = 0; k < terms; k++) {
+                    addDebugEntry(`項 ${k + 1}/${terms} の計算開始`);
+                    const k_big = math.bignumber(k);
+                    
+                    const k4 = math.multiply(4, k_big);
+                    const factorial4k = factorial(k4);
+                    addDebugEntry(`4k!の計算完了`, factorial4k);
+                    
+                    const factor1103 = math.add(
+                        math.bignumber(1103),
+                        math.multiply(math.bignumber(26390), k_big)
+                    );
+                    addDebugEntry(`1103 + 26390k の計算完了`, factor1103);
+                    
+                    const factorialK = factorial(k_big);
+                    const factorialK4 = math.pow(factorialK, 4);
+                    addDebugEntry(`(k!)^4 の計算完了`, factorialK4);
+                    
+                    const factor396 = math.pow(
+                        math.bignumber(396),
+                        math.multiply(4, k_big)
+                    );
+                    addDebugEntry(`396^(4k) の計算完了`, factor396);
+                    
+                    const numerator = math.multiply(factorial4k, factor1103);
+                    const denominator = math.multiply(factorialK4, factor396);
+                    const term = math.divide(numerator, denominator);
+                    addDebugEntry(`項 ${k + 1} の計算結果`, term);
+                    
+                    sum = math.add(sum, term);
+                    addDebugEntry(`現在の合計`, sum);
+                    
+                    updateProgress(k + 1, terms);
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+                
+                addDebugEntry('最終計算開始');
+                const sqrt2 = math.sqrt(math.bignumber(2));
+                const factor = math.divide(
+                    math.multiply(math.bignumber(2), sqrt2),
+                    math.bignumber(9801)
+                );
+                
+                const piInverse = math.multiply(factor, sum);
+                const pi = math.divide(math.bignumber(1), piInverse);
+                addDebugEntry('計算完了', pi);
+                
+                loadingDiv.style.display = 'none';
+                const formattedPi = formatPiValue(pi, precision);
+                const totalTime = Date.now() - startTime;
+                
+                resultDiv.innerHTML = `
+                    <div class="result-value">
+                        <strong>π ≈</strong><br>
+                        ${formattedPi}
+                    </div>
+                    <div class="precision-info">
+                        計算項数：${terms}<br>
+                        表示桁数：${precision}<br>
+                        計算時間：${formatTime(totalTime)}
+                    </div>
+                `;
+                
+            } catch (error) {
+                addDebugEntry('エラーが発生しました', error.message, true);
+                loadingDiv.style.display = 'none';
+                resultDiv.innerHTML = `
+                    <div class="error-message">
+                        計算中にエラーが発生しました：<br>
+                        ${error.message}<br>
+                        項数を小さくして再度お試しください。
+                        <div class="stack-trace">${error.stack}</div>
+                    </div>
+                `;
+                console.error('Calculation error:', error);
+            }
+            
+            button.disabled = false;
+        }
+    </script>
+</body>
+</html>
