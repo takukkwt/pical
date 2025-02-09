@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>円周率計算機</title>
+  <!-- math.js の読み込み -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+  <style>
+    /* 基本設定：黒背景に白文字 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+    /* 画面ごとのコンテナ */
+    .screen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    .screen.active {
+      display: block;
+    }
+    /* 中央揃え */
+    .centered {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      flex-direction: column;
+      text-align: center;
+    }
+    /* 右下に表示する「Press Enter」 */
+    .bottom-right {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    /* 点滅アニメーション */
+    .blink {
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.2; }
+      100% { opacity: 1; }
+    }
+    /* 入力画面用 */
+    .input-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .input-container input {
+      padding: 10px;
+      font-size: 20px;
+      border: 2px solid white;
+      background: transparent;
+      color: white;
+      margin-top: 10px;
+      width: 200px;
+      text-align: center;
+    }
+    .input-error {
+      color: red;
+      margin-top: 10px;
+    }
+    /* 計算中画面用 */
+    #calcDetails {
+      background: black;
+      width: 80%;
+      height: 50%;
+      overflow-y: auto;
+      border: 1px solid white;
+      margin: 20px auto;
+      padding: 10px;
+      font-family: monospace;
+      text-align: left;
+    }
+    #progressContainer {
+      width: 80%;
+      height: 20px;
+      background: #444;
+      margin: 10px auto;
+      border: 1px solid white;
+    }
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: white;
+    }
+    #remainingTime {
+      text-align: center;
+      margin-top: 10px;
+    }
+    /* 結果画面用 */
+    #resultMessage {
+      font-size: 24px;
+      margin-bottom: 20px;
+      transition: transform 1s, opacity 1s;
+    }
+    /* クラス追加で上にスライド */
+    #resultMessage.slideUp {
+      transform: translateY(-50px);
+      opacity: 0;
+    }
+    #piResult {
+      font-size: 20px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      word-break: break-all;
+      min-height: 50px;
+    }
+    #restart {
+      margin-top: 30px;
+      cursor: pointer;
+      text-decoration: underline;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- スプラッシュ画面 -->
+  <div id="splashScreen" class="screen active">
+    <div class="centered">
+      <h1>円周率を計算します。</h1>
+    </div>
+    <div id="splashEnter" class="bottom-right blink">Press Enter</div>
+  </div>
+
+  <!-- 項数入力画面 -->
+  <div id="termInputScreen" class="screen">
+    <div class="centered">
+      <h1>項数を入力してください</h1>
+      <div class="input-container">
+        <input type="number" id="termInput" placeholder="例: 1" min="1">
+        <div id="termError" class="input-error" style="display:none;">入力してください</div>
+      </div>
+    </div>
+    <div id="termEnter" class="bottom-right blink">Press Enter</div>
+  </div>
+
+  <!-- 桁数入力画面 -->
+  <div id="precisionInputScreen" class="screen">
+    <div class="centered">
+      <h1>表示する桁数を入力してください</h1>
+      <div class="input-container">
+        <input type="number" id="precisionInput" placeholder="例: 30" min="1">
+        <div id="precisionError" class="input-error" style="display:none;">入力してください</div>
+      </div>
+    </div>
+    <div id="precisionEnter" class="bottom-right blink">Press Enter</div>
+  </div>
+
+  <!-- 計算中画面 -->
+  <div id="calculationScreen" class="screen">
+    <div class="centered" style="flex-direction: column;">
+      <div id="calcDetails"></div>
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+      </div>
+      <div id="remainingTime"></div>
+    </div>
+  </div>
+
+  <!-- 結果表示画面 -->
+  <div id="resultScreen" class="screen">
+    <div class="centered" style="flex-direction: column;">
+      <div id="resultMessage">計算が完了しました</div>
+      <div id="piResult"></div>
+      <div id="restart">もう一度最初から</div>
+    </div>
+  </div>
+
+  <!-- 計算終了サウンド -->
+  <audio id="finishSound" src="finish.mp3"></audio>
+
+  <script>
+    // グローバル変数
+    let currentScreen = "splashScreen"; // "splashScreen", "termInputScreen", "precisionInputScreen", "calculationScreen", "resultScreen"
+    let termValue = null;
+    let precisionValue = null;
+
+    // 画面切り替え用ユーティリティ
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+      currentScreen = screenId;
+    }
+
+    // 各画面で「Enterキー」または「Press Enter」クリックで次に進む
+    document.addEventListener('keydown', function(e) {
+      if (e.key === "Enter") {
+        handleEnter();
+      }
+    });
+    document.getElementById("splashEnter").addEventListener("click", handleEnter);
+    document.getElementById("termEnter").addEventListener("click", handleEnter);
+    document.getElementById("precisionEnter").addEventListener("click", handleEnter);
+
+    function handleEnter() {
+      if (currentScreen === "splashScreen") {
+        // スプラッシュ→項数入力へ
+        switchScreen("termInputScreen");
+      } else if (currentScreen === "termInputScreen") {
+        let termInput = document.getElementById("termInput").value;
+        if (!termInput || termInput <= 0) {
+          document.getElementById("termError").style.display = "block";
+        } else {
+          document.getElementById("termError").style.display = "none";
+          termValue = parseInt(termInput);
+          switchScreen("precisionInputScreen");
+        }
+      } else if (currentScreen === "precisionInputScreen") {
+        let precisionInput = document.getElementById("precisionInput").value;
+        if (!precisionInput || precisionInput <= 0) {
+          document.getElementById("precisionError").style.display = "block";
+        } else {
+          document.getElementById("precisionError").style.display = "none";
+          precisionValue = parseInt(precisionInput);
+          // 入力完了→計算開始
+          switchScreen("calculationScreen");
+          startCalculation(termValue, precisionValue);
+        }
+      }
+    }
+
+    // 「もう一度最初から」クリックでリロード
+    document.getElementById("restart").addEventListener("click", function() {
+      location.reload();
+    });
+
+    /* -------------------------------
+       以下、計算ロジック（Ramanujan の公式）と各進捗・結果表示
+       ------------------------------- */
+
+    let debugLog = [];
+    let startTime = null;
+    let termTimes = [];
+
+    function addDebugEntry(message, value = null, isError = false) {
+      const time = new Date().toLocaleTimeString();
+      const entry = {
+        time,
+        message,
+        value: value ? value.toString() : null,
+        isError
+      };
+      debugLog.push(entry);
+      updateCalcDetails();
+    }
+
+    function updateCalcDetails() {
+      const calcDetails = document.getElementById("calcDetails");
+      calcDetails.innerHTML = debugLog.map(entry => {
+        return `<div>${entry.time} - ${entry.message}${entry.value ? ": " + entry.value : ""}</div>`;
+      }).join("");
+      calcDetails.scrollTop = calcDetails.scrollHeight;
+    }
+
+    function formatTime(milliseconds) {
+      if (milliseconds < 1000) {
+        return `${Math.round(milliseconds)}ミリ秒`;
+      } else if (milliseconds < 60000) {
+        return `${Math.round(milliseconds / 1000)}秒`;
+      } else {
+        const minutes = Math.floor(milliseconds / 60000);
+        const seconds = Math.round((milliseconds % 60000) / 1000);
+        return `${minutes}分${seconds}秒`;
+      }
+    }
+
+    function updateRemainingTime(current, total) {
+      if (!startTime || current === 0) {
+        startTime = Date.now();
+        termTimes = [];
+        return;
+      }
+      const currentTime = Date.now();
+      termTimes.push(currentTime);
+      if (termTimes.length > 1) {
+        const recentTimes = termTimes.slice(-Math.min(5, termTimes.length));
+        const averageTime = (recentTimes[recentTimes.length - 1] - recentTimes[0]) / (recentTimes.length - 1);
+        const remainingTerms = total - current;
+        const estimatedRemainingTime = averageTime * remainingTerms;
+        document.getElementById("remainingTime").textContent = "推定残り時間: " + formatTime(estimatedRemainingTime);
+      }
+    }
+
+    function updateProgress(current, total) {
+      const percent = Math.round((current / total) * 100);
+      document.getElementById("progressBar").style.width = percent + "%";
+      updateRemainingTime(current, total);
+    }
+
+    // math.js を用いた階乗計算（BigNumber）
+    function factorial(n) {
+      try {
+        addDebugEntry(`階乗の計算開始: ${n}`);
+        if (n === 0 || n === math.bignumber(0)) return math.bignumber(1);
+        let result = math.bignumber(1);
+        for (let i = 1; i <= Number(n); i++) {
+          result = math.multiply(result, math.bignumber(i));
+        }
+        addDebugEntry(`階乗の計算完了: ${n}!`, result);
+        return result;
+      } catch (error) {
+        addDebugEntry(`階乗の計算でエラー発生: ${error.message}`, null, true);
+        throw error;
+      }
+    }
+
+    function formatPiValue(pi, precision) {
+      const piString = pi.toString();
+      const parts = piString.split('.');
+      if (parts.length !== 2) return piString;
+      const integerPart = parts[0];
+      const decimalPart = parts[1];
+      const truncatedDecimal = decimalPart.substring(0, precision);
+      return `${integerPart}.${truncatedDecimal}`;
+    }
+
+    async function startCalculation(terms, precision) {
+      try {
+        const calcPrecision = precision + 10;
+        math.config({
+          precision: calcPrecision,
+          number: 'BigNumber'
+        });
+        let sum = math.bignumber(0);
+        addDebugEntry('初期化完了');
+        for (let k = 0; k < terms; k++) {
+          addDebugEntry(`項 ${k + 1}/${terms} の計算開始`);
+          const k_big = math.bignumber(k);
+          const k4 = math.multiply(4, k_big);
+          const factorial4k = factorial(k4);
+          addDebugEntry(`4k!の計算完了`, factorial4k);
+          const factor1103 = math.add(
+            math.bignumber(1103),
+            math.multiply(math.bignumber(26390), k_big)
+          );
+          addDebugEntry(`1103 + 26390k の計算完了`, factor1103);
+          const factorialK = factorial(k_big);
+          const factorialK4 = math.pow(factorialK, 4);
+          addDebugEntry(`(k!)^4 の計算完了`, factorialK4);
+          const factor396 = math.pow(
+            math.bignumber(396),
+            math.multiply(4, k_big)
+          );
+          addDebugEntry(`396^(4k) の計算完了`, factor396);
+          const numerator = math.multiply(factorial4k, factor1103);
+          const denominator = math.multiply(factorialK4, factor396);
+          const term = math.divide(numerator, denominator);
+          addDebugEntry(`項 ${k + 1} の計算結果`, term);
+          sum = math.add(sum, term);
+          addDebugEntry(`現在の合計`, sum);
+          updateProgress(k + 1, terms);
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        addDebugEntry('最終計算開始');
+        const sqrt2 = math.sqrt(math.bignumber(2));
+        const factor = math.divide(
+          math.multiply(math.bignumber(2), sqrt2),
+          math.bignumber(9801)
+        );
+        const piInverse = math.multiply(factor, sum);
+        const pi = math.divide(math.bignumber(1), piInverse);
+        addDebugEntry('計算完了', pi);
+        // 終了サウンド再生
+        document.getElementById("finishSound").play();
+        // 少し待って結果表示へ
+        setTimeout(() => {
+          showResult(pi, precision);
+        }, 500);
+      } catch (error) {
+        addDebugEntry('エラーが発生しました', error.message, true);
+        document.getElementById("calcDetails").innerHTML = `<div style="color:red;">計算中にエラーが発生しました: ${error.message}</div>`;
+      }
+    }
+
+    // 結果表示：まず「計算が完了しました」を表示、その後スライドアップしながら1文字ずつ円周率を表示
+    function showResult(pi, precision) {
+      switchScreen("resultScreen");
+      const formattedPi = formatPiValue(pi, precision);
+      const resultMessageDiv = document.getElementById("resultMessage");
+      const piResultDiv = document.getElementById("piResult");
+      resultMessageDiv.textContent = "計算が完了しました";
+      piResultDiv.textContent = "";
+      // 1秒後に結果メッセージをスライドアップさせ、文字アニメーション開始
+      setTimeout(() => {
+        resultMessageDiv.classList.add("slideUp");
+        let index = 0;
+        const interval = setInterval(() => {
+          if (index < formattedPi.length) {
+            piResultDiv.textContent += formattedPi[index];
+            index++;
+          } else {
+            clearInterval(interval);
+            document.getElementById("restart").style.display = "block";
+          }
+        }, 50);
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
+
